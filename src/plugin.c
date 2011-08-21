@@ -79,6 +79,24 @@ static BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam)
     return (data->hWnd != hwnd);
 }
 
+void SetStatus(InstanceData *data, char *status)
+{
+    static char last[256];
+    RECT rc = { 0, 0, data->window.width, data->window.height };
+    HDC hdc = GetDC(data->window.window);
+
+    if (status != NULL)
+    {
+        strncpy(last, status, 255);
+    }
+
+    SetBkColor(hdc, RGB(0,0,0));
+    SetTextColor(hdc, RGB(255,255,255));
+    FillRect(hdc, &rc, (HBRUSH) GetStockObject(BLACK_BRUSH));
+    DrawText(hdc, last, -1, &rc, DT_NOPREFIX|DT_SINGLELINE|DT_VCENTER|DT_CENTER);
+    ReleaseDC(data->window.window, hdc);
+}
+
 NPError WINAPI NP_GetEntryPoints(NPPluginFuncs* pFuncs)
 {
     printf("NP_GetEntryPoints(pFuncs=%p)\n", pFuncs);
@@ -223,7 +241,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             }
             return PostMessage(data->hWnd, uMsg, wParam, lParam);
         case WM_ERASEBKGND:
-            FillRect(GetDC(hWnd), &rc, (HBRUSH) GetStockObject(BLACK_BRUSH));
+            SetStatus(data, NULL);
             return TRUE;
     }
 
@@ -237,6 +255,8 @@ int LaunchThread(InstanceData *data)
 
     memset(&pInfo, 0, sizeof(PROCESS_INFORMATION));
     memset(&sInfo, 0, sizeof(STARTUPINFOA));
+
+    SetStatus(data, "Starting game...");
 
     // FIXME: find a way to define the game and it's path
     if (CreateProcessA("redalert\\ra95.exe", NULL, 0, 0, FALSE, CREATE_SUSPENDED, 0, 0, &sInfo, &pInfo))
@@ -254,7 +274,7 @@ int LaunchThread(InstanceData *data)
 
         ResumeThread(pInfo.hThread);
 
-        printf("Process launched, waiting for window...\n");
+        SetStatus(data, "Waiting for image...");
 
         while (data->hWnd == NULL)
         {
@@ -262,10 +282,9 @@ int LaunchThread(InstanceData *data)
             Sleep(100);
         }
 
-        printf("Process window created\n");
         data->hProcess = pInfo.hProcess;
     } else {
-        printf("Error launching process\n");
+        SetStatus(data, "Failed to start the game.");
     }
 
     while (PostMessage(data->hWnd, WM_USER, MAKEWPARAM(data->window.width, data->window.height), (LPARAM)data->window.window) == 0)
