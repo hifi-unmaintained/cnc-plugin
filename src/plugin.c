@@ -14,55 +14,39 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <windows.h>
 #include <stdio.h>
-
-/* nptypes.h expect VC and do not test for gcc so these are required */
-#include <stdbool.h>
-#include <stdint.h>
-
-#include <npapi.h>
-#include <npfunctions.h>
+#include "plugin.h"
 
 static NPNetscapeFuncs* browser = NULL;
 
-typedef struct InstanceData
+static char plugin_path[MAX_PATH] = { 0 };
+static HINSTANCE plugin_hInstance;
+
+BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {
-    NPP npp;
-    NPWindow window;
-    HWND hWnd;
-    HANDLE hProcess;
-    HANDLE hThread;
-} InstanceData;
+    if (fdwReason == DLL_PROCESS_ATTACH)
+    {
+        plugin_hInstance = hinstDLL;
+    }
+
+    return TRUE;
+}
 
 #ifdef _DEBUG
 BOOL con = FALSE;
 #endif
 
-static BOOL is_running = FALSE;
+NPP is_running = NULL;
 
-static void mem_write_byte(HANDLE hProcess, DWORD address, BYTE val)
+BOOL FileExists(const char *path)
 {
-    DWORD dwWritten;
-    VirtualProtectEx(hProcess, (void *)address, sizeof(BYTE), PAGE_EXECUTE_READWRITE, NULL);
-    WriteProcessMemory(hProcess, (void *)address, &val, sizeof(BYTE), &dwWritten);
-}
-
-static void mem_write_dword(HANDLE hProcess, DWORD address, DWORD val)
-{
-    DWORD dwWritten;
-    VirtualProtectEx(hProcess, (void *)address, sizeof(DWORD), PAGE_EXECUTE_READWRITE, NULL);
-    WriteProcessMemory(hProcess, (void *)address, &val, sizeof(DWORD), &dwWritten);
-}
-
-static void mem_write_nop(HANDLE hProcess, DWORD address, DWORD len)
-{
-    DWORD dwWritten;
-    void *data = malloc(len);
-    memset(data, 0x90, len);
-    VirtualProtectEx(hProcess, (void *)address, len, PAGE_EXECUTE_READWRITE, NULL);
-    WriteProcessMemory(hProcess, (void *)address, data, len, &dwWritten);
-    free(data);
+    FILE* file;
+    if( (file = fopen(path, "r")) )
+    {
+        fclose(file);
+        return TRUE;
+    }
+    return FALSE;
 }
 
 void SetStatus(InstanceData *data, char *status)
@@ -122,6 +106,13 @@ NPError WINAPI NP_Initialize(NPNetscapeFuncs* bFuncs)
     printf("NP_Initialize(bFuncs=%p)\n", bFuncs);
 
     browser = bFuncs;
+
+    if (GetModuleFileNameA(plugin_hInstance, plugin_path, sizeof(plugin_path)) > 0)
+    {
+        char *ptr = strrchr(plugin_path, '\\');
+        if (ptr) *ptr = 0;
+    }
+
     return NPERR_NO_ERROR;
 }
 
@@ -162,6 +153,46 @@ NPError NPP_New(NPMIMEType pluginType, NPP instance, uint16_t mode, int16_t argc
     data->npp = instance;
     instance->pdata = data;
 
+    if (is_running && is_running != instance)
+    {
+        SetStatus(data, "A game is already running.");
+        return NPERR_NO_ERROR;
+    }
+
+    is_running = instance;
+
+    /* FIXME: don't trust MIME has / and doesn't end with one */
+    char *ptr = strchr(pluginType, '/');
+    ptr++;
+    snprintf(data->path, sizeof(data->path), "%s\\%s", plugin_path, ptr);
+    snprintf(data->config, sizeof(data->config), "%s\\%s\\cncplugin.ini", plugin_path, ptr);
+
+    printf(" path       : %s\n", data->path);
+    printf(" config     : %s\n", data->config);
+
+    if (!FileExists(data->config))
+    {
+        SetStatus(data, "Oh noes, can't find configuration file! :-(");
+    }
+    else
+    {
+        GetPrivateProfileStringA("cncplugin", "application", NULL, data->application, sizeof(data->application), data->config);
+        GetPrivateProfileStringA("cncplugin", "executable", NULL, data->executable, sizeof(data->executable), data->config);
+        GetPrivateProfileStringA("cncplugin", "url", NULL, data->url, sizeof(data->url), data->config);
+        printf(" application: %s\n", data->application);
+        printf(" executable : %s\n", data->executable);
+        printf(" url        : %s\n", data->url);
+
+        if (strlen(data->application) == 0 || strlen(data->executable) == 0 || strlen(data->url) == 0)
+        {
+            SetStatus(data, "Oh noes, the configuration file is corrupted! :-(");
+        }
+        else
+        {
+            data->hThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)UpdaterThread, (void *)data, 0, NULL);
+        }
+    }
+
     return NPERR_NO_ERROR;
 }
 
@@ -173,7 +204,7 @@ NPError NPP_Destroy(NPP instance, NPSavedData** save)
     if (data->hProcess)
     {
         TerminateProcess(data->hProcess, 0);
-        is_running = FALSE;
+        is_running = NULL;
     }
 
     free(data);
@@ -238,47 +269,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     return DefWindowProc(hWnd, uMsg, wParam, lParam);
 }
 
-int LaunchThread(InstanceData *data)
-{
-    PROCESS_INFORMATION pInfo;
-    STARTUPINFOA sInfo;
-
-    memset(&pInfo, 0, sizeof(PROCESS_INFORMATION));
-    memset(&sInfo, 0, sizeof(STARTUPINFOA));
-
-    SetStatus(data, "Starting game...");
-
-    char buf[256];
-    snprintf(buf, 256, "%d", (unsigned int)data->window.window);
-    SetEnvironmentVariable("DDRAW_WINDOW", buf);
-
-    // FIXME: find a way to define the game and it's path
-    if (CreateProcessA("redalert\\ra95.exe", NULL, 0, 0, FALSE, CREATE_SUSPENDED, 0, 0, &sInfo, &pInfo))
-    {
-        HANDLE hProcess = OpenProcess(PROCESS_VM_OPERATION|PROCESS_VM_READ|PROCESS_VM_WRITE, FALSE, pInfo.dwProcessId);
-
-        // don't show the window at all, styles set to zero
-        mem_write_dword(hProcess, 0x005B398F, 0x00000000);
-        mem_write_byte(hProcess, 0x005B399E, 0x00);
-        mem_write_nop(hProcess, 0x005B39A6, 2);
-        mem_write_nop(hProcess, 0x005B39BF, 8);
-
-        // forces sound even when the actual game window is inactive
-        mem_write_dword(hProcess, 0x005BEC82, 0x00008080);
-
-        ResumeThread(pInfo.hThread);
-
-        SetStatus(data, "Waiting for image...");
-
-        data->hProcess = pInfo.hProcess;
-    } else {
-        SetStatus(data, "Failed to start the game.");
-        is_running = FALSE;
-    }
-
-    return TRUE;
-}
-
 NPError NPP_SetWindow(NPP instance, NPWindow* window)
 {
     InstanceData* data = (InstanceData*)(instance->pdata);
@@ -290,25 +280,11 @@ NPError NPP_SetWindow(NPP instance, NPWindow* window)
     SetWindowLong(window->window, GWL_WNDPROC, (LONG)WndProc);
     SetWindowLong(window->window, GWL_USERDATA, (LONG)data);
 
-    if (is_running)
+    /* give out our new window in case it actually changed, usually it does not change */
+    if (data->hWnd)
     {
-        SetStatus(data, "A game is already running.");
-        return NPERR_NO_ERROR;
-    }
-
-    is_running = TRUE;
-
-#ifndef NOGAME
-    if (data->hThread == NULL && data->window.width && data->window.height)
-    {
-        data->hThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)LaunchThread, (void *)data, 0, NULL);
-    }
-    else
-    {
-        /* hope that the game is running */
         PostMessage(data->hWnd, WM_USER, 0, (LPARAM)data->window.window);
     }
-#endif
 
     return NPERR_NO_ERROR;
 }
