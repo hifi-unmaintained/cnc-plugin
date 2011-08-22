@@ -39,6 +39,8 @@ typedef struct InstanceData
 BOOL con = FALSE;
 #endif
 
+static BOOL is_running = FALSE;
+
 static void mem_write_byte(HANDLE hProcess, DWORD address, BYTE val)
 {
     DWORD dwWritten;
@@ -61,22 +63,6 @@ static void mem_write_nop(HANDLE hProcess, DWORD address, DWORD len)
     VirtualProtectEx(hProcess, (void *)address, len, PAGE_EXECUTE_READWRITE, NULL);
     WriteProcessMemory(hProcess, (void *)address, data, len, &dwWritten);
     free(data);
-}
-
-static BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam)
-{
-    char buf[256];
-    InstanceData* data = (InstanceData*)(lParam);
-
-    GetWindowText(hwnd, buf, sizeof(buf));
-
-    // FIXME: support multiple instances
-    if (strcmp(buf, "Red Alert") == 0)
-    {
-        data->hWnd = hwnd;
-    }
-
-    return (data->hWnd != hwnd);
 }
 
 void SetStatus(InstanceData *data, char *status)
@@ -187,6 +173,7 @@ NPError NPP_Destroy(NPP instance, NPSavedData** save)
     if (data->hProcess)
     {
         TerminateProcess(data->hProcess, 0);
+        is_running = FALSE;
     }
 
     free(data);
@@ -202,6 +189,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
     switch (uMsg)
     {
+        case WM_USER:
+            data->hWnd = (HWND)lParam;
+            return TRUE;
         case WM_LBUTTONUP:
         case WM_RBUTTONUP:
             if (!locked)
@@ -258,6 +248,10 @@ int LaunchThread(InstanceData *data)
 
     SetStatus(data, "Starting game...");
 
+    char buf[256];
+    snprintf(buf, 256, "%d", (unsigned int)data->window.window);
+    SetEnvironmentVariable("DDRAW_WINDOW", buf);
+
     // FIXME: find a way to define the game and it's path
     if (CreateProcessA("redalert\\ra95.exe", NULL, 0, 0, FALSE, CREATE_SUSPENDED, 0, 0, &sInfo, &pInfo))
     {
@@ -276,20 +270,10 @@ int LaunchThread(InstanceData *data)
 
         SetStatus(data, "Waiting for image...");
 
-        while (data->hWnd == NULL)
-        {
-            EnumWindows(EnumWindowsProc, (LPARAM)data);
-            Sleep(100);
-        }
-
         data->hProcess = pInfo.hProcess;
     } else {
         SetStatus(data, "Failed to start the game.");
-    }
-
-    while (PostMessage(data->hWnd, WM_USER, MAKEWPARAM(data->window.width, data->window.height), (LPARAM)data->window.window) == 0)
-    {
-        Sleep(100);
+        is_running = FALSE;
     }
 
     return TRUE;
@@ -306,6 +290,14 @@ NPError NPP_SetWindow(NPP instance, NPWindow* window)
     SetWindowLong(window->window, GWL_WNDPROC, (LONG)WndProc);
     SetWindowLong(window->window, GWL_USERDATA, (LONG)data);
 
+    if (is_running)
+    {
+        SetStatus(data, "A game is already running.");
+        return NPERR_NO_ERROR;
+    }
+
+    is_running = TRUE;
+
 #ifndef NOGAME
     if (data->hThread == NULL && data->window.width && data->window.height)
     {
@@ -314,7 +306,7 @@ NPError NPP_SetWindow(NPP instance, NPWindow* window)
     else
     {
         /* hope that the game is running */
-        PostMessage(data->hWnd, WM_USER, MAKEWPARAM(data->window.width, data->window.height), (LPARAM)data->window.window);
+        PostMessage(data->hWnd, WM_USER, 0, (LPARAM)data->window.window);
     }
 #endif
 
