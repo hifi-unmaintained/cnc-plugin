@@ -8,8 +8,7 @@ To successfully register the plugin, following is required:
 
   1. Copy npcncplugin.dll as <whatever>.dll you want to <wherever> you want
   2. Add a configuration file named "<whatever>.ini" to <wherever> you placed the dll containing information where to download updates from
-  3. Register the dll as a Mozilla plugin, set MIME to something you like
-  4. The plugin will create a directory <whatever> in <wherever> to install the app data
+  3. The plugin will create a directory based on the "game" <param /> in <wherever> to install the app data
 
 The plugin should now be ready to install/update the application.
 
@@ -21,12 +20,17 @@ If version.txt and the actual files are not in sync cnc-plugin will refuse to la
 
 cnc-plugin itself will NEVER be updated automatically this way. Preferred way to update cnc-plugin is to wrap up installing it in a browser *extension* which can be kept up-to-date using the vendors own channel.
 
-Example cncplugin.ini
+Example npcncplugin.ini
 ---------------------
-[cncplugin]
+[cnc95]
+application=Command & Conquer
+executable=C&C95.exe
+url=http://example.com/plugin-data/cnc95/release.txt
+
+[ra95]
 application=Command & Conquer: Red Alert
 executable=ra95.exe
-url=http://hifi.iki.fi/cnc-plugin/data/release.txt
+url=http://example.com/plugin-data/ra95/release.txt
 
 Web server file structure
 -------------------------

@@ -41,6 +41,7 @@ typedef struct InstanceData
     char url[MAX_PATH];
     char path[MAX_PATH];
     char config[MAX_PATH];
+    char game[MAX_PATH];
 } InstanceData;
 
 BOOL FileExists(const char *path);

@@ -15,6 +15,7 @@
  */
 
 #include "plugin.h"
+#include "strl.h"
 
 #include <stdio.h>
 #include <unistd.h>
@@ -22,7 +23,9 @@
 
 static NPNetscapeFuncs* browser = NULL;
 
+static char plugin_name[MAX_PATH] = { 0 };
 static char plugin_path[MAX_PATH] = { 0 };
+
 static HINSTANCE plugin_hInstance;
 
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
@@ -44,6 +47,12 @@ NPP is_running = NULL;
 BOOL FileExists(const char *path)
 {
     FILE* file;
+
+    if (path == NULL || strlen(path) == 0)
+    {
+        return FALSE;
+    }
+
     if( (file = fopen(path, "r")) )
     {
         fclose(file);
@@ -113,8 +122,14 @@ NPError WINAPI NP_Initialize(NPNetscapeFuncs* bFuncs)
 
     if (GetModuleFileNameA(plugin_hInstance, plugin_path, sizeof(plugin_path)) > 0)
     {
-        char *ptr = strrchr(plugin_path, '.');
-        if (ptr) *ptr = 0;
+        char *ptr = strrchr(plugin_path, '\\');
+        if (ptr)
+        {
+            *ptr = 0;
+            strlcpy(plugin_name, ptr+1, sizeof(plugin_name));
+            ptr = strrchr(plugin_name, '.');
+            if (ptr) *ptr = '\0';
+        }
     }
 
     return NPERR_NO_ERROR;
@@ -165,41 +180,64 @@ NPError NPP_New(NPMIMEType pluginType, NPP instance, uint16_t mode, int16_t argc
 
     is_running = instance;
 
-    snprintf(data->path, sizeof(data->path), "%s", plugin_path);
-    snprintf(data->config, sizeof(data->config), "%s.ini", plugin_path);
+    printf(" params     : %d\n", argc);
+    for (int i = 0; i < argc; i++)
+    {
+        if (strcmp(argn[i], "game") == 0)
+        {
+            const char charset[] = "abcdefghijklmnopqrstuvwxyz0123456789";
+            int j;
+            for (j = 0; j < strlen(argv[i]); j++)
+            {
+                if (strchr(charset, argv[i][j]) == NULL)
+                {
+                    break;
+                }
+            }
 
-    printf(" path       : %s\n", data->path);
-    printf(" config     : %s\n", data->config);
+            if (j == strlen(argv[i]))
+            {
+                snprintf(data->path, sizeof(data->path), "%s\\%s", plugin_path, argv[i]);
+                snprintf(data->config, sizeof(data->config), "%s\\%s.ini", plugin_path, plugin_name);
+                strlcpy(data->game, argv[i], sizeof(data->game));
+
+                printf(" game       : %s\n", data->game);
+                printf(" path       : %s\n", data->path);
+                printf(" config     : %s\n", data->config);
+            }
+            break;
+        }
+    }
 
     if (!FileExists(data->config))
     {
         SetStatus(data, "Oh noes, can't find configuration file! :-(");
+        is_running = NULL;
+        return NPERR_NO_ERROR;
+    }
+
+    GetPrivateProfileStringA(data->game, "application", NULL, data->application, sizeof(data->application), data->config);
+    GetPrivateProfileStringA(data->game, "executable", NULL, data->executable, sizeof(data->executable), data->config);
+    GetPrivateProfileStringA(data->game, "url", NULL, data->url, sizeof(data->url), data->config);
+    printf(" application: %s\n", data->application);
+    printf(" executable : %s\n", data->executable);
+    printf(" url        : %s\n", data->url);
+
+    mkdir(data->path);
+    if (chdir(data->path) < 0)
+    {
+        SetStatus(data, "Failed to create data directory :-(");
+        return NPERR_NO_ERROR;
+    }
+
+
+    if (strlen(data->application) == 0 || strlen(data->executable) == 0 || strlen(data->url) == 0)
+    {
+        SetStatus(data, "Oh noes, the configuration file is corrupted! :-(");
     }
     else
     {
-        GetPrivateProfileStringA("cncplugin", "application", NULL, data->application, sizeof(data->application), data->config);
-        GetPrivateProfileStringA("cncplugin", "executable", NULL, data->executable, sizeof(data->executable), data->config);
-        GetPrivateProfileStringA("cncplugin", "url", NULL, data->url, sizeof(data->url), data->config);
-        printf(" application: %s\n", data->application);
-        printf(" executable : %s\n", data->executable);
-        printf(" url        : %s\n", data->url);
-
-        mkdir(data->path);
-        if (chdir(data->path) < 0)
-        {
-            SetStatus(data, "Failed to create data directory :-(");
-            return NPERR_NO_ERROR;
-        }
-
-
-        if (strlen(data->application) == 0 || strlen(data->executable) == 0 || strlen(data->url) == 0)
-        {
-            SetStatus(data, "Oh noes, the configuration file is corrupted! :-(");
-        }
-        else
-        {
-            data->hThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)UpdaterThread, (void *)data, 0, NULL);
-        }
+        data->hThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)UpdaterThread, (void *)data, 0, NULL);
     }
 
     return NPERR_NO_ERROR;

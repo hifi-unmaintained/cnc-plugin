@@ -23,9 +23,9 @@ FILEVERSION 1,0,0,0
         {
             VALUE "ProductName", "Command & Conquer Plugin"
             VALUE "FileDescription", "Run classic C&C games inside the browser"
-            VALUE "MIMEType", "application/cncplugin|application/x-cncplugin"
+            VALUE "MIMEType", "application/x-cnc-plugin"
             VALUE "FileExtents", ""
-            VALUE "FileOpenName", "Command & Conquer Plugin|Command & Conquer Plugin"
+            VALUE "FileOpenName", "Command & Conquer Plugin"
         }
     }
 
