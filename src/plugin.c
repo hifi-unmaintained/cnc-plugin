@@ -15,6 +15,7 @@
  */
 
 #include <stdio.h>
+#include <unistd.h>
 #include "plugin.h"
 
 static NPNetscapeFuncs* browser = NULL;
@@ -49,22 +50,27 @@ BOOL FileExists(const char *path)
     return FALSE;
 }
 
-void SetStatus(InstanceData *data, char *status)
+int SetStatus(InstanceData *data, const char *fmt, ...)
 {
-    static char last[256];
+    va_list args;
+    static char buf[512];
     RECT rc = { 0, 0, data->window.width, data->window.height };
     HDC hdc = GetDC(data->window.window);
 
-    if (status != NULL)
+    if (fmt != NULL)
     {
-        strncpy(last, status, 255);
+        va_start(args, fmt);
+        vsnprintf(buf, sizeof(buf), fmt, args);
+        va_end(args);
     }
 
     SetBkColor(hdc, RGB(0,0,0));
     SetTextColor(hdc, RGB(255,255,255));
     FillRect(hdc, &rc, (HBRUSH) GetStockObject(BLACK_BRUSH));
-    DrawText(hdc, last, -1, &rc, DT_NOPREFIX|DT_SINGLELINE|DT_VCENTER|DT_CENTER);
+    DrawText(hdc, buf, -1, &rc, DT_NOPREFIX|DT_SINGLELINE|DT_VCENTER|DT_CENTER);
     ReleaseDC(data->window.window, hdc);
+
+    return 1;
 }
 
 NPError WINAPI NP_GetEntryPoints(NPPluginFuncs* pFuncs)
@@ -109,7 +115,7 @@ NPError WINAPI NP_Initialize(NPNetscapeFuncs* bFuncs)
 
     if (GetModuleFileNameA(plugin_hInstance, plugin_path, sizeof(plugin_path)) > 0)
     {
-        char *ptr = strrchr(plugin_path, '\\');
+        char *ptr = strrchr(plugin_path, '.');
         if (ptr) *ptr = 0;
     }
 
@@ -161,11 +167,8 @@ NPError NPP_New(NPMIMEType pluginType, NPP instance, uint16_t mode, int16_t argc
 
     is_running = instance;
 
-    /* FIXME: don't trust MIME has / and doesn't end with one */
-    char *ptr = strchr(pluginType, '/');
-    ptr++;
-    snprintf(data->path, sizeof(data->path), "%s\\%s", plugin_path, ptr);
-    snprintf(data->config, sizeof(data->config), "%s\\%s\\cncplugin.ini", plugin_path, ptr);
+    snprintf(data->path, sizeof(data->path), "%s", plugin_path);
+    snprintf(data->config, sizeof(data->config), "%s.ini", plugin_path);
 
     printf(" path       : %s\n", data->path);
     printf(" config     : %s\n", data->config);
@@ -182,6 +185,14 @@ NPError NPP_New(NPMIMEType pluginType, NPP instance, uint16_t mode, int16_t argc
         printf(" application: %s\n", data->application);
         printf(" executable : %s\n", data->executable);
         printf(" url        : %s\n", data->url);
+
+        mkdir(data->path);
+        if (chdir(data->path) < 0)
+        {
+            SetStatus(data, "Failed to create data directory :-(");
+            return NPERR_NO_ERROR;
+        }
+
 
         if (strlen(data->application) == 0 || strlen(data->executable) == 0 || strlen(data->url) == 0)
         {

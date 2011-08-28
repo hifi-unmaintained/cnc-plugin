@@ -6,10 +6,10 @@ Installing
 ----------
 To successfully register the plugin, following is required:
 
-  1. Copy npcncplugin.dll as whatever.dll you want to wherever you want
-  2. Create a directory which is the identifier part of mime: application/<directory>
-  3. Register the dll as a Mozilla plugin, set MIME to application/<directory>
-  4. Add a configuration file named "cncplugin.ini" to the directory containing information where to download updates from
+  1. Copy npcncplugin.dll as <whatever>.dll you want to <wherever> you want
+  2. Add a configuration file named "<whatever>.ini" to <wherever> you placed the dll containing information where to download updates from
+  3. Register the dll as a Mozilla plugin, set MIME to something you like
+  4. The plugin will create a directory <whatever> in <wherever> to install the app data
 
 The plugin should now be ready to install/update the application.
 
@@ -26,20 +26,19 @@ Example cncplugin.ini
 [cncplugin]
 application=Command & Conquer: Red Alert
 executable=ra95.exe
-url=http://hifi.iki.fi/cnc-plugin/data/
+url=http://hifi.iki.fi/cnc-plugin/data/release.txt
 
 Web server file structure
 -------------------------
 path/to/data/
-    version.txt
+    release.txt
         -- snip --
-        1               // the fileset version (incremental)
-        app.exe.gz      <SHA1>
-        data.mix.gz     <SHA1>
-        lib.dll.gz      <SHA1>
-        uncomp.txt      <SHA1>
+        <version>   (converted with atoi() for comparison, be careful)
+        [hash1] [file1]
+        [hash2] [file2]
+        ...
         -- snap --
     app.exe.gz
     data.mix.gz
     lib.dll.gz
-    uncomp.txt
+    uncomp.txt.gz

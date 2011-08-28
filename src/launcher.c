@@ -36,7 +36,7 @@ int LauncherThread(InstanceData *data)
     // FIXME: find a way to define the game and it's path
     if (CreateProcessA(data->executable, NULL, 0, 0, FALSE, 0, 0, 0, &sInfo, &pInfo))
     {
-        SetStatus(data, "Waiting for image...");
+        SetStatus(data, "%s is starting...", data->application);
         data->hProcess = pInfo.hProcess;
     } else {
         SetStatus(data, "Failed to start the game.");
