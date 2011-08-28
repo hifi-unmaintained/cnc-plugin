@@ -231,12 +231,21 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     {
         case WM_USER:
             data->hWnd = (HWND)lParam;
+            if (data->hWnd == NULL)
+            {
+                SetStatus(data, "GAME OVER");
+                if (locked)
+                {
+                    ClipCursor(NULL);
+                    while(ShowCursor(TRUE) < 0);
+                    locked = FALSE;
+                }
+            }
             return TRUE;
         case WM_LBUTTONUP:
         case WM_RBUTTONUP:
-            if (!locked)
+            if (!locked && data->hWnd)
             {
-
                 ClientToScreen(hWnd, &pt);
                 rc.left = pt.x;
                 rc.top = pt.y;
