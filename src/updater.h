@@ -14,38 +14,23 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* nptypes.h expect VC and do not test for gcc so these are required */
-#include <stdbool.h>
-#include <stdint.h>
+#ifndef _UPDATER_H_
+#define _UPDATER_H_
 
-#include <npapi.h>
-#include <npfunctions.h>
+#define MEMSIZ 4096
 
-#include <windows.h>
+typedef struct {
+    char str_hash[33];
+    char hash[16];
+    char name[64];
+} updater_index_file;
 
-#ifndef _PLUGIN_H_
-#define _PLUGIN_H_
+typedef struct {
+    unsigned int version;
+    int num_files;
+    updater_index_file **files;
+} updater_index;
 
-typedef struct InstanceData
-{
-    NPP npp;
-    NPWindow window;
-    HWND hWnd;
-    HANDLE hProcess;
-    HANDLE hThread;
-
-    /* app related */
-    char application[256];
-    char executable[64];
-    char url[MAX_PATH];
-    char path[MAX_PATH];
-    char config[MAX_PATH];
-} InstanceData;
-
-int SetStatus(InstanceData *data, const char *fmt, ...);
-int UpdaterThread(InstanceData *data);
-int LauncherThread(InstanceData *data);
-
-extern NPP is_running;
+updater_index *updater_parse_index(char *buf);
 
 #endif

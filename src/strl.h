@@ -14,38 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* nptypes.h expect VC and do not test for gcc so these are required */
-#include <stdbool.h>
-#include <stdint.h>
+#include <string.h>
 
-#include <npapi.h>
-#include <npfunctions.h>
-
-#include <windows.h>
-
-#ifndef _PLUGIN_H_
-#define _PLUGIN_H_
-
-typedef struct InstanceData
-{
-    NPP npp;
-    NPWindow window;
-    HWND hWnd;
-    HANDLE hProcess;
-    HANDLE hThread;
-
-    /* app related */
-    char application[256];
-    char executable[64];
-    char url[MAX_PATH];
-    char path[MAX_PATH];
-    char config[MAX_PATH];
-} InstanceData;
-
-int SetStatus(InstanceData *data, const char *fmt, ...);
-int UpdaterThread(InstanceData *data);
-int LauncherThread(InstanceData *data);
-
-extern NPP is_running;
-
-#endif
+size_t strlcpy(char *dest, const char *src, size_t size);
+size_t strlcat(char *dest, const char *src, size_t size);

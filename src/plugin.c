@@ -14,9 +14,11 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include "plugin.h"
+
 #include <stdio.h>
 #include <unistd.h>
-#include "plugin.h"
+#include <stdarg.h>
 
 static NPNetscapeFuncs* browser = NULL;
 
@@ -273,7 +275,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             }
             return PostMessage(data->hWnd, uMsg, wParam, lParam);
         case WM_ERASEBKGND:
-            SetStatus(data, NULL);
+            //SetStatus(data, NULL);
             return TRUE;
     }
 

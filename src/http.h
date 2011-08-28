@@ -14,38 +14,27 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* nptypes.h expect VC and do not test for gcc so these are required */
-#include <stdbool.h>
-#include <stdint.h>
+#ifndef _HTTP_H_
+#define _HTTP_H_
 
-#include <npapi.h>
-#include <npfunctions.h>
+#include "plugin.h"
+#include <curl/curl.h>
 
-#include <windows.h>
+typedef struct {
+    InstanceData *data;
+    char name[MAX_PATH];
+} download;
 
-#ifndef _PLUGIN_H_
-#define _PLUGIN_H_
+typedef struct {
+    void *buf;
+    size_t bufsiz;
+    size_t bufpos;
+} download_mem;
 
-typedef struct InstanceData
-{
-    NPP npp;
-    NPWindow window;
-    HWND hWnd;
-    HANDLE hProcess;
-    HANDLE hThread;
-
-    /* app related */
-    char application[256];
-    char executable[64];
-    char url[MAX_PATH];
-    char path[MAX_PATH];
-    char config[MAX_PATH];
-} InstanceData;
-
-int SetStatus(InstanceData *data, const char *fmt, ...);
-int UpdaterThread(InstanceData *data);
-int LauncherThread(InstanceData *data);
-
-extern NPP is_running;
+size_t http_write_mem(void *buf, size_t len, size_t nmemb, download_mem *dl_mem);
+CURLcode http_download_mem(InstanceData *data, const char *url, void *buf, size_t bufsiz);
+size_t http_write_file(void *buf, size_t len, size_t nmemb, FILE *fh);
+CURLcode http_download_file(InstanceData *data, const char *url);
+CURLcode http_download(InstanceData *data, const char *url);
 
 #endif

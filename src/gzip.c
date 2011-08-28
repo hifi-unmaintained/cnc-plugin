@@ -14,38 +14,48 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* nptypes.h expect VC and do not test for gcc so these are required */
-#include <stdbool.h>
-#include <stdint.h>
+#include "gzip.h"
+#include <zlib.h>
+#include <stdio.h>
+#include <errno.h>
 
-#include <npapi.h>
-#include <npfunctions.h>
-
-#include <windows.h>
-
-#ifndef _PLUGIN_H_
-#define _PLUGIN_H_
-
-typedef struct InstanceData
+bool gzip_uncompress_file(InstanceData *data, const char *src, const char *dst)
 {
-    NPP npp;
-    NPWindow window;
-    HWND hWnd;
-    HANDLE hProcess;
-    HANDLE hThread;
+    gzFile *gz_fh;
+    FILE *fh;
+    char buf[128];
+    int ret;
 
-    /* app related */
-    char application[256];
-    char executable[64];
-    char url[MAX_PATH];
-    char path[MAX_PATH];
-    char config[MAX_PATH];
-} InstanceData;
+    SetStatus(data, "Uncompressing %s...", dst);
 
-int SetStatus(InstanceData *data, const char *fmt, ...);
-int UpdaterThread(InstanceData *data);
-int LauncherThread(InstanceData *data);
+    gz_fh = gzopen(src, "rb");
+    if (!gz_fh)
+    {
+        return false;
+    }
 
-extern NPP is_running;
+    fh = fopen(dst, "wb");
+    if (!fh)
+    {
+        gzclose(gz_fh);
+        return false;
+    }
 
-#endif
+    do
+    {
+        ret = gzread(gz_fh, buf, sizeof(buf));
+        if (ret > 0)
+        {
+            if (fwrite(buf, ret, 1, fh) < 1)
+            {
+                ret = -1;
+                break;
+            }
+        }
+    } while (ret > 0);
+
+    gzclose(gz_fh);
+    fclose(fh);
+
+    return (ret == 0);
+}

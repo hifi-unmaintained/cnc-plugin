@@ -6,12 +6,9 @@ REV=$(shell sh -c 'git rev-parse --short @{0}')
 
 all: dll
 
-updater: src/updater.c
-	gcc -std=c99 -pedantic -Wall -DOS_UNIX=1 -Inpapi -g -o updater src/updater.c -lcurl
-
 dll:
 	$(WINDRES) -J rc src/plugin.rc src/plugin.rc.o
-	$(CC) $(CFLAGS) -mwindows -Wl,--enable-stdcall-fixup -s -shared -o npcncplugin.dll src/plugin.c src/updater.c src/launcher.c src/plugin.def src/plugin.rc.o $(LIBS)
+	$(CC) $(CFLAGS) -mwindows -Wl,--enable-stdcall-fixup -s -shared -o npcncplugin.dll src/plugin.c src/updater.c src/launcher.c src/strl.c src/http.c src/parse.c src/gzip.c src/plugin.def src/plugin.rc.o $(LIBS)
 
 clean:
 	rm -f npcncplugin.dll src/plugin.rc.o

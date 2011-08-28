@@ -14,38 +14,34 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* nptypes.h expect VC and do not test for gcc so these are required */
-#include <stdbool.h>
-#include <stdint.h>
+#include "strl.h"
 
-#include <npapi.h>
-#include <npfunctions.h>
-
-#include <windows.h>
-
-#ifndef _PLUGIN_H_
-#define _PLUGIN_H_
-
-typedef struct InstanceData
+size_t strlcpy(char *dest, const char *src, size_t size)
 {
-    NPP npp;
-    NPWindow window;
-    HWND hWnd;
-    HANDLE hProcess;
-    HANDLE hThread;
+    size_t src_len = strlen(src);
+    size_t len = src_len < size ? src_len : size - 1;
 
-    /* app related */
-    char application[256];
-    char executable[64];
-    char url[MAX_PATH];
-    char path[MAX_PATH];
-    char config[MAX_PATH];
-} InstanceData;
+    if (len > 0)
+    {
+        memcpy(dest, src, len);
+    }
 
-int SetStatus(InstanceData *data, const char *fmt, ...);
-int UpdaterThread(InstanceData *data);
-int LauncherThread(InstanceData *data);
+    dest[len] = '\0';
 
-extern NPP is_running;
+    return len;
+}
 
-#endif
+size_t strlcat(char *dest, const char *src, size_t size)
+{
+    size_t dest_len = strlen(dest);
+    size_t src_len = strlen(src);
+    size_t len = src_len < (size - dest_len - 1) ? src_len : size - dest_len - 1;
+
+    if (len > 0)
+    {
+        memcpy(dest + dest_len, src, len);
+        dest[dest_len + len] = '\0';
+    }
+
+    return dest_len + len;
+}

@@ -14,38 +14,16 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* nptypes.h expect VC and do not test for gcc so these are required */
-#include <stdbool.h>
-#include <stdint.h>
+#ifndef _PARSE_H_
+#define _PARSE_H_
 
-#include <npapi.h>
-#include <npfunctions.h>
+#include "updater.h"
 
-#include <windows.h>
-
-#ifndef _PLUGIN_H_
-#define _PLUGIN_H_
-
-typedef struct InstanceData
-{
-    NPP npp;
-    NPWindow window;
-    HWND hWnd;
-    HANDLE hProcess;
-    HANDLE hThread;
-
-    /* app related */
-    char application[256];
-    char executable[64];
-    char url[MAX_PATH];
-    char path[MAX_PATH];
-    char config[MAX_PATH];
-} InstanceData;
-
-int SetStatus(InstanceData *data, const char *fmt, ...);
-int UpdaterThread(InstanceData *data);
-int LauncherThread(InstanceData *data);
-
-extern NPP is_running;
+const char *parse_url_set_file(const char *url, const char *file);
+const char *parse_url_get_file(const char *url);
+char *parse_line(char *str);
+char *parse_line_r(char *str, char **saveptr);
+int parse_line_count(const char *buf);
+updater_index_file *parse_hash(char *buf);
 
 #endif
