@@ -55,22 +55,18 @@ BOOL FileExists(const char *path)
 int SetStatus(InstanceData *data, const char *fmt, ...)
 {
     va_list args;
-    static char buf[512];
     RECT rc = { 0, 0, data->window.width, data->window.height };
-    HDC hdc = GetDC(data->window.window);
 
-    if (fmt != NULL)
+    if (fmt == NULL)
     {
-        va_start(args, fmt);
-        vsnprintf(buf, sizeof(buf), fmt, args);
-        va_end(args);
+        return 0;
     }
 
-    SetBkColor(hdc, RGB(0,0,0));
-    SetTextColor(hdc, RGB(255,255,255));
-    FillRect(hdc, &rc, (HBRUSH) GetStockObject(BLACK_BRUSH));
-    DrawText(hdc, buf, -1, &rc, DT_NOPREFIX|DT_SINGLELINE|DT_VCENTER|DT_CENTER);
-    ReleaseDC(data->window.window, hdc);
+    va_start(args, fmt);
+    vsnprintf(data->status, sizeof(data->status), fmt, args);
+    va_end(args);
+
+    InvalidateRect(data->window.window, &rc, TRUE);
 
     return 1;
 }
@@ -273,10 +269,21 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             {
                 return TRUE;
             }
-            return PostMessage(data->hWnd, uMsg, wParam, lParam);
         case WM_ERASEBKGND:
-            //SetStatus(data, NULL);
-            return TRUE;
+            return PostMessage(data->hWnd, uMsg, wParam, lParam);
+        case WM_PAINT:
+            if (data->hWnd == NULL)
+            {
+                PAINTSTRUCT ps;
+                HDC hdc = BeginPaint(hWnd, &ps);
+                RECT rc = { 0, 0, data->window.width, data->window.height };
+                SetBkColor(hdc, RGB(0,0,0));
+                SetTextColor(hdc, RGB(255,255,255));
+                FillRect(hdc, &rc, (HBRUSH) GetStockObject(BLACK_BRUSH));
+                DrawText(hdc, data->status, -1, &rc, DT_NOPREFIX|DT_SINGLELINE|DT_VCENTER|DT_CENTER);
+                EndPaint(hWnd, &ps);
+                return TRUE;
+            }
     }
 
     return DefWindowProc(hWnd, uMsg, wParam, lParam);

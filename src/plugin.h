@@ -33,6 +33,7 @@ typedef struct InstanceData
     HWND hWnd;
     HANDLE hProcess;
     HANDLE hThread;
+    char status[256];
 
     /* app related */
     char application[256];
