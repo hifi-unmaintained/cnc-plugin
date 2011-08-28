@@ -79,6 +79,7 @@ int UpdaterThread(InstanceData *data)
         updater_index_free(index);
     }
 
+    memset(buf, 0, MEMSIZ);
     if (http_download_mem(data, data->url, buf, MEMSIZ-1) == CURLE_OK)
     {
         char *tmp = calloc(1, MEMSIZ);
