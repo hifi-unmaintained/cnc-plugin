@@ -43,6 +43,7 @@ typedef struct InstanceData
     char config[MAX_PATH];
 } InstanceData;
 
+BOOL FileExists(const char *path);
 int SetStatus(InstanceData *data, const char *fmt, ...);
 int UpdaterThread(InstanceData *data);
 int LauncherThread(InstanceData *data);

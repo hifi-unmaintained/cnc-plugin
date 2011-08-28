@@ -95,6 +95,11 @@ int UpdaterThread(InstanceData *data)
             {
                 if (index->files[i])
                 {
+                    if (is_zero_hash(index->files[i]) && FileExists(index->files[i]->name))
+                    {
+                        continue;
+                    }
+
                     if (http_download(data, parse_url_set_file(data->url, index->files[i]->name)) != CURLE_OK)
                     {
                         SetStatus(data, "Couldn't download %s :-(", index->files[i]->name);
@@ -110,6 +115,25 @@ int UpdaterThread(InstanceData *data)
             {
                 fwrite(buf, strlen(buf), 1, fh);
                 fclose(fh);
+            }
+        }
+        else
+        {
+            for (int i = 0; i < index->num_files; i++)
+            {
+                if (index->files[i])
+                {
+                    if (!FileExists(index->files[i]->name))
+                    {
+                        if (http_download(data, parse_url_set_file(data->url, index->files[i]->name)) != CURLE_OK)
+                        {
+                            SetStatus(data, "Couldn't download %s :-(", index->files[i]->name);
+                            free(buf);
+                            updater_index_free(index);
+                            return 0;
+                        }
+                    }
+                }
             }
         }
 

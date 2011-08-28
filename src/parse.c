@@ -155,3 +155,16 @@ updater_index_file *parse_hash(char *buf)
 
     return dl_idx_file;
 }
+
+bool is_zero_hash(updater_index_file *file)
+{
+    for (int i = 0; i < strlen(file->str_hash); i++)
+    {
+        if (file->str_hash[i] != '0')
+        {
+            return false;
+        }
+    }
+
+    return true;
+}

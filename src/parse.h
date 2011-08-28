@@ -25,5 +25,6 @@ char *parse_line(char *str);
 char *parse_line_r(char *str, char **saveptr);
 int parse_line_count(const char *buf);
 updater_index_file *parse_hash(char *buf);
+bool is_zero_hash(updater_index_file *file);
 
 #endif
